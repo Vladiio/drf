@@ -4,9 +4,10 @@ from rest_framework import generics
 from rest_framework import mixins
 from rest_framework import permissions
 from rest_framework import renderers
+from rest_framework import viewsets
 from rest_framework.reverse import reverse
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, action
 
 from snippets.models import Snippet
 from snippets.serializers import SnippetSerializer, UserSerializer
@@ -23,6 +24,21 @@ def api_root(request, format=None):
     })
 
 
+class SnippetViewSet(viewsets.ModelViewSet):
+    queryset = Snippet.objects.all()
+    serializer_class = SnippetSerializer
+    permission_classes = (
+        permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly)
+
+    @action(detail=True, renderer_classes=(renderers.StaticHTMLRenderer,))
+    def highlight(self, *args, **kwargs):
+        snippet = self.get_object()
+        return Response(snippet.highlighted)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+
 class SnippetHighlight(generics.GenericAPIView):
     queryset = Snippet.objects.all()
     renderer_classes = (renderers.StaticHTMLRenderer,)
@@ -32,14 +48,19 @@ class SnippetHighlight(generics.GenericAPIView):
         return Response(snippet.highlighted)
 
 
-class UserList(generics.ListAPIView):
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
 
-class UserDetail(generics.RetrieveAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
+# class UserList(generics.ListAPIView):
+#     queryset = User.objects.all()
+#     serializer_class = UserSerializer
+
+
+# class UserDetail(generics.RetrieveAPIView):
+#     queryset = User.objects.all()
+#     serializer_class = UserSerializer
 
 
 class SnippetList(generics.ListCreateAPIView):
